@@ -14,6 +14,7 @@ func handleConnection(conn net.Conn){
 	reader:=bufio.NewReader(conn)
 	//this goroutine will keep alive util closed with error or eof
 	for{
+
 		req,err:=http.ReadRequest(reader)
 		if err!=nil{
 			if err!=io.EOF{
@@ -26,9 +27,11 @@ func handleConnection(conn net.Conn){
 			if err:=req.Write(be);err==nil{
 				//read the resonse from the backend
 				if resp,err:=http.ReadResponse(beReader,req);err==nil{
-					resp.Close=true
 					if err:=resp.Write(conn);err==nil{
 						log.Printf("%s:%d",req.URL.Path,resp.StatusCode)
+					}
+					if resp.Close {
+						return
 					}
 				}
 			}
@@ -41,12 +44,8 @@ func main() {
 		fmt.Println(err.Error())
 	}
 	for {
-		conn,err:=ln.Accept()
-		if err!=nil{
-			fmt.Println(err.Error())
-		}else{
+		if conn,err:=ln.Accept();err==nil{
 			go handleConnection(conn)
 		}
-
 	}
 }
