@@ -1,2 +1,2 @@
 # go-proxy
-Make a http proxy using golang
+Using golang to make a proxy 
