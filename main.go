@@ -10,6 +10,7 @@ import (
 	"sync"
 	"strconv"
 	"time"
+	"net/rpc"
 )
 
 
@@ -18,6 +19,26 @@ type Backend struct {
 	Reader *bufio.Reader
 	Writer *bufio.Writer
 }
+
+type Empty struct {}
+type Stats struct {
+	RequestBytes map[string]int64
+}
+type RpcServer struct {}
+
+
+func (r *RpcServer)GetStats(args *Empty,reply *Stats) error{
+	requestLock.Lock()
+	defer requestLock.Unlock()
+	log.Printf("Rpc calling.")
+	reply.RequestBytes = make(map[string]int64)
+	for k,v:= range requestBytes{
+		reply.RequestBytes[k]=v
+	}
+	return nil
+}
+
+
 
 var backendQueue chan *Backend
 var requestBytes map[string]int64
@@ -103,8 +124,16 @@ func handleConnection(conn net.Conn){
 		}
 }
 func main() {
-	ln,err:=net.Listen("tcp",":8080")
 
+	rpc.Register(&RpcServer{})
+	rpc.HandleHTTP()
+	l,err:=net.Listen("tcp",":8079")
+	if err!=nil{
+		log.Fatalf("Fail to listen : %s",err)
+	}
+	go http.Serve(l,nil)
+
+	ln,err:=net.Listen("tcp",":8080")
 	if err!=nil{
 		fmt.Println(err.Error())
 	}
@@ -115,7 +144,6 @@ func main() {
 			fmt.Printf("\n[%s] Stats are %+v\n",t.String(),requestBytes)
 		}
 	}()
-
 
 
 
