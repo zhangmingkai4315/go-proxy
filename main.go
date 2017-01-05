@@ -6,25 +6,33 @@ import (
 	"bufio"
 	"net/http"
 	"log"
+	"io"
 )
 
 func handleConnection(conn net.Conn){
 	defer conn.Close();
 	reader:=bufio.NewReader(conn)
-	if req,err:=http.ReadRequest(reader);err==nil{
-		  //connect to backend
-		  if be,err:=net.Dial("tcp","jsmean.com:80");err==nil{
-			  beReader:=bufio.NewReader(be)
-			  if err:=req.Write(be);err==nil{
-					//read the resonse from the backend
-				  if resp,err:=http.ReadResponse(beReader,req);err==nil{
-					  resp.Close=true
-					  if err:=resp.Write(conn);err==nil{
-						  log.Printf("%s:%d",req.URL.Path,resp.StatusCode)
-					  }
+	//this goroutine will keep alive util closed with error or eof
+	for{
+		req,err:=http.ReadRequest(reader)
+		if err!=nil{
+			if err!=io.EOF{
+				log.Printf("Failed to read request:%s",err.Error())
+			}
+			return
+		}
+		if be,err:=net.Dial("tcp","localhost:8081");err==nil{
+			beReader:=bufio.NewReader(be)
+			if err:=req.Write(be);err==nil{
+				//read the resonse from the backend
+				if resp,err:=http.ReadResponse(beReader,req);err==nil{
+					resp.Close=true
+					if err:=resp.Write(conn);err==nil{
+						log.Printf("%s:%d",req.URL.Path,resp.StatusCode)
 					}
 				}
-		  }
+			}
+		}
 	}
 }
 func main() {
